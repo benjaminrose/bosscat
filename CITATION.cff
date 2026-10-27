@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software in your work, please cite it using the following metadata."
+authors:
+- family-names: "Rose"
+  given-names: "Benjamin"
+  orcid: "https://orcid.org/https://orcid.org/0000-0002-1873-8973"
+title: bosscat
+version: 0.0
+doi: 
+date-released: 
+url: 
