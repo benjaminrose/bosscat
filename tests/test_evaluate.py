@@ -136,3 +136,23 @@ def test_cli_text_and_json(tmp_path, monkeypatch, capsys):
                         ["evaluate", str(r), "--manifest", str(m), "--json"])
     ev.main()
     assert json.loads(capsys.readouterr().out)["n_matched"] == 1
+
+
+def test_snid_type_normalized_to_broad(tmp_path):
+    m = write_csv(tmp_path / "m.csv", [
+        man("a", fam="Ia-norm"), man("b", fam="II"), man("c", fam="Ib"),
+        man("d", fam="Ia"), man("e", fam="Ia")])
+    r = write_csv(tmp_path / "r.csv", [
+        res("a", typ="Ia-norm"), res("b", typ="IIb"), res("c", typ="Ibn"),
+        res("d", typ="AGN"), res("e", typ="")])
+    ngsf = ev.evaluate(r, m)["type_agreement"]["vs_ngsf"]
+    assert (ngsf["n"], ngsf["agree"]) == (4, 3)
+
+
+def test_failure_count(tmp_path):
+    m = write_csv(tmp_path / "m.csv", [man("a"), man("b")])
+    r = write_csv(tmp_path / "r.csv", [res("a"), res("b", success="False")])
+    out = ev.evaluate(r, m)
+    assert out["n_snid_success"] == 1
+    assert out["n_snid_failed"] == 1
+    assert "failures" in ev.format_report(out)

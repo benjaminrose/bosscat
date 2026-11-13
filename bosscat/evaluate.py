@@ -100,7 +100,8 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
     -------
     dict
         JSON-serializable summary: ``n_results``, ``n_matched``,
-        ``n_unmatched_results``, ``n_unmatched_manifest``, ``n_snid_success``,
+        ``n_unmatched_results``, ``n_unmatched_manifest``, ``n_snid_success``, ``n_snid_failed``
+        (matched rows with snid_success not true),
         ``n_flagged`` (per ``snid_flag_*`` column), ``high_z``, ``redshift``
         (per SNID redshift column, with ``all`` and ``high_z`` entries of
         ``n``/``median``/``mad`` for ``snid_* - z_fit``) and
@@ -118,6 +119,7 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
     matched_files = set()
     n_matched = 0
     n_success = 0
+    n_failed = 0
 
     for row in results:
         ref = by_file.get(row.get("filename", ""))
@@ -125,6 +127,8 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
             matched_files.add(row["filename"])
             n_matched += 1
         if not _true(row.get("snid_success")):
+            if ref is not None:
+                n_failed += 1
             continue
         n_success += 1
         for c in flag_cols:
@@ -143,11 +147,12 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
                     resid[c]["high_z"].append(z - z_ref)
         snid_type = (row.get("snid_consensus_type") or "").strip()
         if snid_type:
+            snid_broad = broad_type(snid_type) or snid_type
             for pairs, label in ((pairs_ngsf, ref.get("sn_family")),
                                  (pairs_tns, ref.get("tns_type"))):
                 mapped = broad_type(label)
                 if mapped is not None:
-                    pairs.append((snid_type, mapped))
+                    pairs.append((snid_broad, mapped))
 
     return {
         "n_results": len(results),
@@ -155,6 +160,7 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
         "n_unmatched_results": len(results) - n_matched,
         "n_unmatched_manifest": len(set(by_file) - matched_files),
         "n_snid_success": n_success,
+        "n_snid_failed": n_failed,
         "n_flagged": n_flagged,
         "high_z": high_z,
         "redshift": {c: {k: _stats(v) for k, v in resid[c].items()}
@@ -183,8 +189,10 @@ def format_report(summary):
     """
     lines = []
     for key in ("n_results", "n_matched", "n_unmatched_results",
-                "n_unmatched_manifest", "n_snid_success"):
-        lines.append(f"{key:<24}{summary[key]:>8}")
+                "n_unmatched_manifest", "n_snid_success",
+                "n_snid_failed"):
+        label = "failures" if key == "n_snid_failed" else key
+        lines.append(f"{label:<24}{summary[key]:>8}")
     for col, n in summary["n_flagged"].items():
         lines.append(f"{col:<24}{n:>8}")
     lines.append("")
