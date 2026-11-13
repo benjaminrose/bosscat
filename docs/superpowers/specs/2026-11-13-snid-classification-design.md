@@ -129,12 +129,12 @@ output traceable to its source.
 - SNID: `snid_success`, `snid_consensus_type`, `snid_best_subtype`,
   `snid_template_name`, `snid_template_type`, `snid_template_subtype`,
   `snid_redshift`, `snid_redshift_err`, `snid_consensus_redshift`,
-  `snid_consensus_redshift_err`, `snid_consensus_age`,
-  `snid_consensus_age_err`, `snid_lap`, `snid_r`, `snid_hsigma_lap_ccc`,
+  `snid_consensus_redshift_err`, `snid_lap`, `snid_hsigma_lap_ccc`,
   `snid_frac_<type>` (from `type_fractions`), `snid_error`, and flags
   `snid_flag_*`.
-- Sidecar JSON: package and SNID-SAGE versions, template set path and
-  checksum if cheap, all config values, run time, input file list.
+- Sidecar JSON `<output file name>.provenance.json`: package and SNID-SAGE
+  versions, template set path and checksum if cheap, all config values, run
+  time, input file list, `complete` and `n_rows`.
 
 ### Quality flags (SNID-specific)
 
@@ -231,7 +231,8 @@ BOSS redshift.
   `file_name` + `.fits`) and reports both columns.
 - No known consumers of the old `classify.py` import path or CSV columns
   (repo is new, 8 commits). Replace outright. Existing CSV columns keep their
-  names except the SNID age fields, which are corrected.
+  names except the SNID age fields, which are dropped (SNID-SAGE 1.2.5
+  returns constant 0.0 for `consensus_age`, `consensus_age_error` and `r`).
 - All writer calls above are planned as written unless the user rejects them.
 
 ## Left to the builder

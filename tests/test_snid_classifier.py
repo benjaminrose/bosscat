@@ -1,6 +1,7 @@
 """Tests for the SNID-SAGE classifier wrapper."""
 
 import dataclasses
+import os
 from types import SimpleNamespace
 
 import numpy as np
@@ -52,24 +53,30 @@ def build(monkeypatch, tmp_path, rec, **cfg_kwargs):
     return make_snid(SnidConfig(templates_dir=str(tmp_path), **cfg_kwargs))
 
 
-def test_flattener_uses_consensus_age_and_both_redshifts():
+def test_flattener_reports_both_redshifts():
     res = stub_result(
         success=True, redshift=0.1, redshift_error=0.01,
         consensus_redshift=0.2, consensus_redshift_error=0.02,
-        consensus_age=5.0, consensus_age_error=1.5,
+        consensus_age=0.0, consensus_age_error=0.0,
         consensus_type="Ia", best_subtype="Ia-norm",
         template_name="sn2004", template_type="Ia", template_subtype="norm",
-        lap=0.8, r=9.0, hsigma_lap_ccc=3.0,
+        lap=0.8, r=0.0, hsigma_lap_ccc=3.0,
     )
     out = snid_result_to_fields(res)
     assert out["snid_redshift"] == 0.1
     assert out["snid_redshift_err"] == 0.01
     assert out["snid_consensus_redshift"] == 0.2
     assert out["snid_consensus_redshift_err"] == 0.02
-    assert out["snid_consensus_age"] == 5.0
-    assert out["snid_consensus_age_err"] == 1.5
     assert out["snid_consensus_type"] == "Ia"
     assert out["snid_hsigma_lap_ccc"] == 3.0
+
+
+def test_placeholder_columns_not_emitted():
+    """SNID-SAGE 1.2.5 returns constant 0.0 for age and r: do not emit them."""
+    out = snid_result_to_fields(stub_result(
+        consensus_age=0.0, consensus_age_error=0.0, r=0.0))
+    for key in ("snid_consensus_age", "snid_consensus_age_err", "snid_r"):
+        assert key not in out
 
 
 def test_type_fraction_keys_sanitized():
@@ -94,7 +101,6 @@ def test_numpy_scalars_become_python():
     assert type(out["snid_success"]) is bool
     assert type(out["snid_redshift"]) is float
     assert type(out["snid_frac_Ia"]) is float
-    assert out["snid_consensus_age"] is None
 
 
 def test_calls_snid_blind_with_plots_off(monkeypatch, tmp_path):
@@ -157,11 +163,24 @@ def test_short_spectrum_error_propagates(monkeypatch, tmp_path):
 
 
 def test_failed_result_keeps_columns(monkeypatch, tmp_path):
-    rec = Recorder(result=stub_result(success=False, consensus_age=None))
+    rec = Recorder(result=stub_result(success=False))
     clf = build(monkeypatch, tmp_path, rec)
     out = clf.run(*spectrum(), {})
     assert out["snid_success"] is False
-    assert out["snid_consensus_age"] is None
+    assert out["snid_lap"] is None
+
+
+def test_snid_api_leaves_set_mplbackend_alone(monkeypatch):
+    monkeypatch.setenv("MPLBACKEND", "svg")
+    snid_mod._snid_api()
+    assert os.environ["MPLBACKEND"] == "svg"
+
+
+def test_snid_api_defaults_mplbackend_to_agg(monkeypatch):
+    monkeypatch.delenv("MPLBACKEND", raising=False)
+    snid_mod._snid_api()
+    assert os.environ["MPLBACKEND"] == "Agg"
+    monkeypatch.delenv("MPLBACKEND")  # do not leak the setdefault
 
 
 def test_provenance(monkeypatch, tmp_path):

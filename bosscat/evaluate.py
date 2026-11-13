@@ -20,8 +20,9 @@ def broad_type(label):
     Returns
     -------
     str or None
-        One of ``"Ia"``, ``"Ib"``, ``"Ic"``, ``"II"``, ``"SLSN"``, or None
-        when the label is blank or not recognised.
+        One of ``"Ia"`` (including ``super_chandra*``), ``"Ib"``, ``"Ic"``,
+        ``"II"``, ``"SLSN"``, ``"TDE"``, or None when the label is blank or
+        not recognised.
     """
     if label is None:
         return None
@@ -32,6 +33,10 @@ def broad_type(label):
     # except SLSN, which does not start with any of them.
     if text.startswith("SLSN"):
         return "SLSN"
+    if text.startswith("TDE"):
+        return "TDE"
+    if text.startswith("super_chandra"):
+        return "Ia"
     for prefix, broad in (("Ia", "Ia"), ("Ib", "Ib"), ("Ic", "Ic"),
                           ("II", "II")):
         if text.startswith(prefix):
@@ -106,7 +111,9 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
         (per SNID redshift column, with ``all`` and ``high_z`` entries of
         ``n``/``median``/``mad`` for ``snid_* - z_fit``) and
         ``type_agreement`` (``vs_ngsf`` and ``vs_tns`` with ``n``, ``agree``,
-        ``fraction``).
+        ``fraction``) and ``unmapped_reference_labels`` (non-blank NGSF or
+        TNS labels that ``broad_type`` maps to None, with counts; counted for
+        successful, matched rows with a SNID type, once per reference).
     """
     results, res_cols = _read(results_csv)
     manifest, _ = _read(manifest_csv)
@@ -116,6 +123,7 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
     n_flagged = {c: 0 for c in flag_cols}
     resid = {c: {"all": [], "high_z": []} for c in REDSHIFT_COLUMNS}
     pairs_ngsf, pairs_tns = [], []
+    unmapped = {}
     matched_files = set()
     n_matched = 0
     n_success = 0
@@ -153,6 +161,9 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
                 mapped = broad_type(label)
                 if mapped is not None:
                     pairs.append((snid_broad, mapped))
+                elif label is not None and str(label).strip():
+                    key = str(label).strip()
+                    unmapped[key] = unmapped.get(key, 0) + 1
 
     return {
         "n_results": len(results),
@@ -165,6 +176,7 @@ def evaluate(results_csv, manifest_csv, high_z=0.3):
         "high_z": high_z,
         "redshift": {c: {k: _stats(v) for k, v in resid[c].items()}
                      for c in REDSHIFT_COLUMNS},
+        "unmapped_reference_labels": dict(sorted(unmapped.items())),
         "type_agreement": {"vs_ngsf": _agreement(pairs_ngsf),
                            "vs_tns": _agreement(pairs_tns)},
     }
@@ -209,6 +221,13 @@ def format_report(summary):
     for name, s in summary["type_agreement"].items():
         lines.append(f"{name:<10}{s['n']:>6}{s['agree']:>7}"
                      f"{_fmt(s['fraction'], '.3f'):>10}")
+    lines.append("")
+    lines.append("unmapped_reference_labels (excluded from agreement)")
+    if summary["unmapped_reference_labels"]:
+        for label, n in summary["unmapped_reference_labels"].items():
+            lines.append(f"  {label:<22}{n:>6}")
+    else:
+        lines.append("  none")
     return "\n".join(lines)
 
 

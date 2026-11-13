@@ -15,7 +15,8 @@ BOSS Classification Analysis Toolkit. Python package `bosscat` (src layout not u
 
 - Output columns are namespaced by their source: `boss_*` for BOSS pipeline values, `snid_*` for SNID-SAGE, `ngsf_*` for any future NGSF. Never put a SNID value in a column named for another tool, and never leave placeholder columns for fields a tool cannot produce (e.g. SNID has no `A_v`, `host_template`, `frac_sn`).
 - Use each tool's native field names and report both of its values when it has two (e.g. SNID `redshift` and `consensus_redshift`), each with its own error.
-- Each classifier takes `(wave, flux, ivar, meta)` and returns a dict of already-prefixed fields; the pipeline merges dicts. Record each tool's configuration (version, templates, z range, rebin factor) in a sidecar JSON.
+- Each classifier takes `(wave, flux, ivar, meta)` and returns a dict of already-prefixed fields; the pipeline merges dicts. Record each tool's configuration (version, templates, z range, rebin factor) in a sidecar `<output file name>.provenance.json` (`complete`, `n_rows`). On Ctrl-C or a crash the rows so far are written and `complete` is false; output names ending `.provenance.json` are rejected.
+- Blind rule is enforced at the interface: the pipeline strips `z`, `z_err`, `class`, `subclass`, `zwarning` from the `meta` passed to classifiers (the `boss_*` columns still come from the full meta).
 - SNID redshift search `zmax` is 0.7 (covers the manifest max, 0.667); the 5 manifest objects with z > 0.3 were the calibration set. Spectra that may lie beyond `zmax` or fit poorly get `snid_flag_*` annotations. Flags only annotate: never suppress or alter `snid_consensus_type`.
 - Rebinning ships only if it improves stability against NGSF/TNS. Default is `rebin_factor = 1`; factor 4/8 (higher NGSF/TNS agreement) is pending user decision, see the calibration report.
 - Air/vacuum conversion and Galactic dereddening are measured but not enabled; enabling either needs user sign-off.
@@ -23,8 +24,8 @@ BOSS Classification Analysis Toolkit. Python package `bosscat` (src layout not u
 
 ## SNID-SAGE facts (verified by running v1.2.5, 2026-11-13)
 
-- `run_snid_analysis` defaults to `show_plots=True`, and its plotting step raises `ImportError` in this install. Always pass `show_plots=False` and set `MPLBACKEND=Agg`. ~11 s per spectrum serial; a full 105-spectrum run is ~11 min with 3 runs in parallel.
-- `redshift` (best template) differs from `consensus_redshift`. `consensus_age`, `consensus_age_error` and `r` are always 0.0 in v1.2.5 (placeholders); `template_age` is populated.
+- `run_snid_analysis` defaults to `show_plots=True`, and its plotting step raises `ImportError` in this install. Always pass `show_plots=False`; `_snid_api` defaults `MPLBACKEND=Agg`. ~11 s per spectrum serial; a full 105-spectrum run is ~11 min with 3 runs in parallel.
+- `redshift` (best template) differs from `consensus_redshift`. `consensus_age`, `consensus_age_error` and `r` are always 0.0 in v1.2.5 (placeholders), so `snid_consensus_age`, `snid_consensus_age_err` and `snid_r` are NOT emitted. `template_age` is populated; emitting it as `snid_template_age` is a candidate that needs the user's sign-off.
 - SNID-SAGE already discards matches with lap < 0.3 or HσLAP-CCC < 1.5 (its defaults) and then returns `success=False`, so `snid_flag_low_quality` at those thresholds marks only failed fits. All SNID failures here have S/N < 3.
 - SNID resamples to 1024 log bins over 2500-10000 Å (406 km/s per bin, ~6 BOSS pixels) and takes flux only, no ivar. Template air/vacuum convention is undocumented.
 - Templates: `/Users/ben_rose/Documents/1 Projects/as5-classifier/SNID-SAGE/templates` (read-only), passed via `--templates-dir` or `BOSSCAT_SNID_TEMPLATES`.
@@ -50,11 +51,11 @@ BOSS Classification Analysis Toolkit. Python package `bosscat` (src layout not u
 ## Layout
 
 - `bosscat/io/boss.py`: `read_boss_spectrum` (COADD + SPALL -> wave, flux, ivar, meta).
-- `bosscat/io/results.py`: `base_row`, `write_results` (CSV), `write_provenance` (sidecar JSON).
+- `bosscat/io/results.py`: `base_row`, `write_results` (CSV), `write_provenance`/`sidecar_path` (sidecar JSON).
 - `bosscat/config.py`: `SnidConfig` (templates dir, z range, rebin factor, flag thresholds).
 - `bosscat/preprocess.py`: `rebin_loglam`.
 - `bosscat/classifiers/snid.py`: `make_snid`, `snid_result_to_fields`, `snid_flags` (wraps `preprocess_spectrum` then `run_snid_analysis`).
-- `bosscat/pipeline.py`: `run_pipeline`; `bosscat/__main__.py`: CLI; `bosscat/evaluate.py`: `python -m bosscat.evaluate RESULTS.csv` vs the manifest.
+- `bosscat/pipeline.py`: `run_pipeline`; `bosscat/__main__.py`: CLI; `bosscat/evaluate.py`: `python -m bosscat.evaluate RESULTS.csv` vs the manifest (NGSF `super_chandra*` counts as Ia, `TDE*` as TDE; other unmapped reference labels are listed, not silently dropped).
 
 ## Testing
 

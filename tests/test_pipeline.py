@@ -4,11 +4,13 @@ import csv
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 from bosscat.classifiers import Classifier
-from bosscat.io.results import base_row, write_provenance, write_results
+from bosscat.io.results import (base_row, sidecar_path, write_provenance,
+                                write_results)
 from bosscat.pipeline import run_pipeline
 
 
@@ -61,14 +63,19 @@ def test_read_error_row_kept(make_fits, tmp_path):
     assert len(record) == 1  # classifier not run on the unreadable file
 
 
-def test_classifier_receives_unmasked_arrays_and_meta(make_fits, tmp_path):
+def test_classifier_receives_unmasked_arrays_and_blind_meta(make_fits, tmp_path):
     record = []
-    run_pipeline([str(make_fits())], tmp_path / "r.csv", [fake("fake", record=record)])
+    out = tmp_path / "r.csv"
+    run_pipeline([str(make_fits())], out, [fake("fake", record=record)])
     (args,) = record
     assert len(args) == 4
     wave, flux, ivar, meta = args
     assert len(wave) == len(flux) == len(ivar) == 5  # ivar == 0 pixel kept
-    assert meta["z"] == pytest.approx(0.5)
+    for key in ("z", "z_err", "class", "subclass", "zwarning"):
+        assert key not in meta
+    for key in ("ebv", "ra", "dec", "mjd", "filename"):
+        assert key in meta
+    assert float(read_csv(out)[0]["boss_z"]) == pytest.approx(0.5)
 
 
 def test_provenance_called_once_before_files_and_error_propagates(make_fits, tmp_path):
@@ -96,9 +103,11 @@ def test_sidecar_json_written(make_fits, tmp_path):
     out = tmp_path / "res" / "r.csv"
     f = make_fits()
     run_pipeline([str(f)], out, [fake("fake", prov={"v": "1.2"})])
-    meta = json.loads((tmp_path / "res" / "r.json").read_text())
+    meta = json.loads((tmp_path / "res" / "r.csv.provenance.json").read_text())
     assert set(meta) == {"bosscat_version", "python_version", "created",
-                         "input_files", "classifiers"}
+                         "input_files", "classifiers", "complete", "n_rows"}
+    assert meta["complete"] is True
+    assert meta["n_rows"] == 1
     assert meta["input_files"] == [str(f)]
     assert meta["classifiers"] == {"fake": {"v": "1.2"}}
     assert meta["created"].endswith(("Z", "+00:00"))
@@ -106,8 +115,71 @@ def test_sidecar_json_written(make_fits, tmp_path):
 
 def test_write_provenance_returns_path(tmp_path):
     path = write_provenance(tmp_path / "x.csv", [], ["a"])
-    assert path == tmp_path / "x.json"
+    assert path == tmp_path / "x.csv.provenance.json"
     assert json.loads(path.read_text())["classifiers"] == {}
+
+
+def test_sidecar_path_never_collides_with_output():
+    assert sidecar_path("results.csv") == Path("results.csv.provenance.json")
+    assert sidecar_path("a/results.json") == Path("a/results.json.provenance.json")
+
+
+def test_output_json_does_not_destroy_csv(make_fits, tmp_path):
+    out = tmp_path / "results.json"
+    run_pipeline([str(make_fits())], out, [fake("fake", {"fake_a": 1})])
+    assert read_csv(out)[0]["fake_a"] == "1"
+    assert (tmp_path / "results.json.provenance.json").exists()
+
+
+def test_output_equal_to_sidecar_path_rejected(make_fits, tmp_path):
+    out = tmp_path / "r.csv.provenance.json"
+    record = []
+    with pytest.raises(ValueError, match="provenance"):
+        run_pipeline([str(make_fits())], out, [fake("fake", record=record)])
+    assert record == [] and not out.exists()
+
+
+def test_keyboard_interrupt_saves_partial_results(make_fits, tmp_path):
+    out = tmp_path / "r.csv"
+    calls = []
+
+    def run(*args):
+        calls.append(1)
+        if len(calls) == 2:
+            raise KeyboardInterrupt
+        return {"fake_a": 1}
+
+    clf = Classifier("fake", run, lambda: {})
+    files = [str(make_fits(n)) for n in ("a.fits", "b.fits", "c.fits")]
+    with pytest.raises(KeyboardInterrupt):
+        run_pipeline(files, out, [clf])
+    assert len(read_csv(out)) == 1
+    side = json.loads((tmp_path / "r.csv.provenance.json").read_text())
+    assert side["complete"] is False
+    assert side["n_rows"] == 1
+    assert len(calls) == 2
+
+
+def test_unexpected_exception_saves_partial_results_and_reraises(
+        make_fits, tmp_path, monkeypatch):
+    from bosscat import pipeline
+
+    real = pipeline.base_row
+    n = []
+
+    def flaky(meta):
+        n.append(1)
+        if len(n) == 2:
+            raise OSError("disk")
+        return real(meta)
+
+    monkeypatch.setattr(pipeline, "base_row", flaky)
+    out = tmp_path / "r.csv"
+    with pytest.raises(OSError, match="disk"):
+        run_pipeline([str(make_fits("a.fits")), str(make_fits("b.fits"))], out, [])
+    assert len(read_csv(out)) == 1
+    side = json.loads((tmp_path / "r.csv.provenance.json").read_text())
+    assert side["complete"] is False
 
 
 def test_write_results_unions_differing_keys(tmp_path):

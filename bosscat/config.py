@@ -70,8 +70,9 @@ class SnidConfig:
         path = self.templates_dir or os.environ.get(TEMPLATES_ENV_VAR)
         if not path:
             raise RuntimeError(
-                f"SNID templates directory not set. Pass templates_dir or "
-                f"set the {TEMPLATES_ENV_VAR} environment variable."
+                f"SNID templates directory not set. Pass "
+                f"SnidConfig(templates_dir=...), use the CLI --templates-dir "
+                f"option, or set the {TEMPLATES_ENV_VAR} environment variable."
             )
         if not Path(path).is_dir():
             raise RuntimeError(f"SNID templates directory does not exist: {path}")

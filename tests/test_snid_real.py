@@ -22,16 +22,15 @@ SPECTRA_DIR = Path(__file__).resolve().parent.parent / "data" / "spectra"
 RESULT_ATTRS = [
     "success", "consensus_type", "best_subtype", "template_name",
     "template_type", "template_subtype", "redshift", "redshift_error",
-    "consensus_redshift", "consensus_redshift_error", "consensus_age",
-    "consensus_age_error", "lap", "r", "hsigma_lap_ccc", "type_fractions",
+    "consensus_redshift", "consensus_redshift_error", "lap",
+    "hsigma_lap_ccc", "type_fractions",
 ]
 
 EXPECTED_KEYS = [
     "snid_success", "snid_consensus_type", "snid_best_subtype",
     "snid_template_name", "snid_template_type", "snid_template_subtype",
     "snid_redshift", "snid_redshift_err", "snid_consensus_redshift",
-    "snid_consensus_redshift_err", "snid_consensus_age",
-    "snid_consensus_age_err", "snid_lap", "snid_r", "snid_hsigma_lap_ccc",
+    "snid_consensus_redshift_err", "snid_lap", "snid_hsigma_lap_ccc",
     "snid_snr_median", "snid_flag_low_quality", "snid_flag_low_snr",
     "snid_flag_nonsn_template", "snid_flag_zedge",
 ]
@@ -74,6 +73,8 @@ def test_real_snid_end_to_end(capsys):
     assert out["snid_success"] is True
     for key in EXPECTED_KEYS:
         assert key in out, key
+    for key in ("snid_consensus_age", "snid_consensus_age_err", "snid_r"):
+        assert key not in out, key
     z = out["snid_consensus_redshift"]
     assert isinstance(z, float)
     assert -0.01 <= z <= 0.7

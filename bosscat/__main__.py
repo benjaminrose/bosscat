@@ -10,6 +10,17 @@ from .pipeline import run_pipeline
 CLASSIFIER_FACTORIES = {"snid": make_snid}
 
 
+def _rebin_factor(text):
+    """Parse ``--rebin-factor``: an integer >= 1."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid integer: {text!r}") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be >= 1, got {value}")
+    return value
+
+
 def parse_args():
     """Parse command-line arguments.
 
@@ -44,7 +55,7 @@ def parse_args():
         help="SNID maximum redshift (default: SnidConfig default)",
     )
     parser.add_argument(
-        "--rebin-factor", type=int,
+        "--rebin-factor", type=_rebin_factor,
         help="SNID rebinning factor (default: SnidConfig default)",
     )
     parser.add_argument(

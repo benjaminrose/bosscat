@@ -44,8 +44,33 @@ def test_broad_type_mapping():
     assert ev.broad_type("Ic-BL") == "Ic"
     assert ev.broad_type("SN IIb") == "II"
     assert ev.broad_type("IIP") == "II"
-    assert ev.broad_type("TDE") is None
+    assert ev.broad_type("TDE") == "TDE"
+    assert ev.broad_type("TDE H+He") == "TDE"
+    assert ev.broad_type("super_chandra") == "Ia"
+    assert ev.broad_type("super_chandra_Ia") == "Ia"
     assert ev.broad_type("Galaxy") is None
+
+
+def test_unmapped_reference_labels_reported(tmp_path):
+    m = write_csv(tmp_path / "m.csv", [
+        man("a", tns="Other", fam="Ia-norm"),
+        man("b", tns="Other", fam="weird"),
+        man("c", tns="", fam="weird"),
+        man("d", tns="SN Ia", fam="")])
+    r = write_csv(tmp_path / "r.csv", [res("a"), res("b"), res("c"), res("d")])
+    out = ev.evaluate(r, m)
+    assert out["unmapped_reference_labels"] == {"Other": 2, "weird": 2}
+    assert "unmapped_reference_labels" in ev.format_report(out)
+    assert "Other" in ev.format_report(out)
+    json.dumps(out)
+
+
+def test_tde_and_super_chandra_enter_denominator(tmp_path):
+    m = write_csv(tmp_path / "m.csv", [
+        man("a", fam="super_chandra"), man("b", fam="TDE H+He")])
+    r = write_csv(tmp_path / "r.csv", [res("a", typ="Ia"), res("b", typ="TDE")])
+    ngsf = ev.evaluate(r, m)["type_agreement"]["vs_ngsf"]
+    assert (ngsf["n"], ngsf["agree"]) == (2, 2)
 
 
 def test_join_on_filename_suffix(tmp_path):

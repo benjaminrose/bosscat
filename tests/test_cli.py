@@ -68,6 +68,15 @@ def test_numeric_options_parsed(monkeypatch):
     assert args.templates_dir == "/t"
 
 
+@pytest.mark.parametrize("value", ["0", "-2"])
+def test_rebin_factor_below_one_is_an_error(monkeypatch, capsys, value):
+    monkeypatch.setattr(sys, "argv", ["bosscat", "a.fits", "--rebin-factor", value])
+    with pytest.raises(SystemExit) as exc:
+        cli.parse_args()
+    assert exc.value.code == 2
+    assert "rebin-factor" in capsys.readouterr().err
+
+
 def test_no_input_files_is_an_error(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["bosscat"])
     with pytest.raises(SystemExit) as exc:

@@ -8,6 +8,9 @@ import platform
 from pathlib import Path
 
 
+PROVENANCE_SUFFIX = ".provenance.json"
+
+
 def base_row(meta):
     """Build the shared and ``boss_*`` columns of a result row.
 
@@ -43,25 +46,48 @@ def base_row(meta):
     }
 
 
-def write_provenance(output_path, classifiers, input_files):
+def sidecar_path(output_path):
+    """Return the provenance sidecar path for a results file.
+
+    Parameters
+    ----------
+    output_path : str or Path
+        Results CSV path.
+
+    Returns
+    -------
+    Path
+        ``<output file name>.provenance.json`` in the same directory, so it
+        can never coincide with the results file (``results.csv`` gives
+        ``results.csv.provenance.json``).
+    """
+    output_path = Path(output_path)
+    return output_path.with_name(output_path.name + PROVENANCE_SUFFIX)
+
+
+def write_provenance(output_path, classifiers, input_files, complete=True,
+                     n_rows=0):
     """Write a JSON sidecar describing a run, next to the results CSV.
 
     Parameters
     ----------
     output_path : str or Path
-        Results CSV path; the sidecar uses the same stem with ``.json``.
+        Results CSV path; see :func:`sidecar_path` for the sidecar name.
     classifiers : sequence of Classifier
         Classifiers used; each ``provenance()`` is recorded under its name.
     input_files : sequence of str
         Input file paths.
+    complete : bool, optional
+        False when the run stopped early (interrupt or crash).
+    n_rows : int, optional
+        Number of result rows written.
 
     Returns
     -------
     Path
         Path of the JSON file written.
     """
-    output_path = Path(output_path)
-    path = output_path.with_suffix(".json")
+    path = sidecar_path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     try:
         version = importlib.metadata.version("bosscat")
@@ -73,6 +99,8 @@ def write_provenance(output_path, classifiers, input_files):
         "created": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "input_files": [str(f) for f in input_files],
         "classifiers": {c.name: c.provenance() for c in classifiers},
+        "complete": bool(complete),
+        "n_rows": int(n_rows),
     }
     path.write_text(json.dumps(record, indent=2) + "\n")
     return path

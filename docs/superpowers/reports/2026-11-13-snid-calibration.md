@@ -15,16 +15,24 @@ and TNS (`tns_type`, 19 spectra). Outputs in `runs/` (not committed).
    identical and no consensus redshift moves by more than 0.01. `zmax = 0.7`
    is kept (harmless, needed for future high-z data) but is unproven.
 3. **Rebinning: the approved rule favours it; the default stays 1 pending a
-   user decision.** Agreement rises at factor 4 (NGSF 0.69 to 0.73, TNS
-   0.72 to 0.79; 6 gained, 1 lost) and factor 8 (NGSF 0.77, TNS 0.84;
-   10 gained, 2 lost, no TNS loss, 10 failures vs 13). `rebin_factor = 1` is
+   user decision.** Agreement rises at factor 4 (NGSF 0.70 to 0.74, TNS
+   0.72 to 0.79; 7 gained, 1 lost) and factor 8 (NGSF 0.77, TNS 0.84;
+   11 gained, 2 lost, no TNS loss, 10 failures vs 13). `rebin_factor = 1` is
    kept only as the conservative, no-behaviour-change default. That is a
    judgment call beyond the approved rule (see Rebinning). Candidates: 4 or 8.
 4. **Flag thresholds kept at SNID-SAGE defaults**, which makes
    `snid_flag_low_quality` equivalent to `snid_success == False` (SNID-SAGE
    already discards matches below `lapmin = 0.3` and HσLAP-CCC 1.5).
 5. **`snid_consensus_age`, `snid_consensus_age_err` and `snid_r` are always
-   0.0** (every success in every run). They are library placeholders.
+   0.0** (every success in every run). They are library placeholders and are
+   no longer emitted.
+6. **Correction (final fix wave).** The first version of `broad_type` dropped
+   NGSF `super_chandra` (4 Ia objects) and `TDE H+He` labels from the
+   type-agreement denominator. They now map to Ia and TDE, and
+   `evaluate` reports unmapped labels (none remain in these runs). The
+   NGSF agreement numbers below are recomputed from the existing `runs/*.csv`
+   (no SNID re-run); TNS numbers did not change. The rebin conclusion is
+   unchanged in direction, and the paired tests are somewhat stronger.
 
 ## Runs
 
@@ -35,11 +43,11 @@ Three runs in parallel on 12 cores; wall time per run 638 to 666 s
 
 | config | wall (s) | success | NGSF agree | TNS agree | med Δz | MAD Δz | \|Δz\|<0.02 | \|Δz\|>0.05 | low_snr | nonsn |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| z0.3 rebin1 | 638 | 92 | 61/88 (0.69) | 13/18 (0.72) | 0.0020 | 0.0030 | 81/92 | 7 | 34 | 8 |
-| z0.7 rebin1 | 666 | 92 | 61/88 (0.69) | 13/18 (0.72) | 0.0020 | 0.0030 | 82/92 | 7 | 34 | 8 |
-| z0.7 rebin2 | 661 | 90 | 59/86 (0.69) | 13/18 (0.72) | 0.0019 | 0.0030 | 80/90 | 7 | 20 | 9 |
-| z0.7 rebin4 | 666 | 95 | 66/90 (0.73) | 15/19 (0.79) | 0.0019 | 0.0029 | 82/95 | 10 | 11 | 6 |
-| z0.7 rebin8 | 666 | 95 | 69/90 (0.77) | 16/19 (0.84) | 0.0019 | 0.0032 | 84/95 | 8 | 5 | 5 |
+| z0.3 rebin1 | 638 | 92 | 64/92 (0.70) | 13/18 (0.72) | 0.0020 | 0.0030 | 81/92 | 7 | 34 | 8 |
+| z0.7 rebin1 | 666 | 92 | 64/92 (0.70) | 13/18 (0.72) | 0.0020 | 0.0030 | 82/92 | 7 | 34 | 8 |
+| z0.7 rebin2 | 661 | 90 | 62/90 (0.69) | 13/18 (0.72) | 0.0019 | 0.0030 | 80/90 | 7 | 20 | 9 |
+| z0.7 rebin4 | 666 | 95 | 70/95 (0.74) | 15/19 (0.79) | 0.0019 | 0.0029 | 82/95 | 10 | 11 | 6 |
+| z0.7 rebin8 | 666 | 95 | 73/95 (0.77) | 16/19 (0.84) | 0.0019 | 0.0032 | 84/95 | 8 | 5 | 5 |
 
 Δz = `snid_consensus_redshift - z_fit`. Agreement is broad type
 (`bosscat.evaluate.broad_type`); non-SN SNID types count as disagreement.
@@ -65,18 +73,18 @@ counts as disagreement; two-sided sign test on gained vs lost):
 | factor | type changed vs rebin 1 | NGSF gained/lost (p) | TNS gained/lost (p) | \|Δz\|>0.05 |
 | --- | --- | --- | --- | --- |
 | 2 | 4/105 | 0/2 (0.50) | 0/0 | 7 |
-| 4 | 8/105 | 6/1 (0.13) | 2/0 (0.50) | 10 |
-| 8 | 15/105 | 10/2 (0.04) | 3/0 (0.25) | 8 |
+| 4 | 8/105 | 7/1 (0.07) | 2/0 (0.50) | 10 |
+| 8 | 15/105 | 11/2 (0.02) | 3/0 (0.25) | 8 |
 
 Decision: **user's call; shipped default stays `rebin_factor = 1`.** The
 approved rule (ship a factor above 1 only if agreement with NGSF/TNS is more
 stable than at factor 1) taken literally favours rebinning: NGSF agreement
-goes 61/88 (0.69) to 66/90 (0.73) at factor 4 and 69/90 (0.77) at factor 8,
+goes 64/92 (0.70) to 70/95 (0.74) at factor 4 and 73/95 (0.77) at factor 8,
 TNS 13/18 (0.72) to 15/19 (0.79) and 16/19 (0.84), with no TNS regression
 and failures down from 13 to 10. I kept 1 as the no-behaviour-change,
 conservative default for reasons outside the approved rule: the best paired
-p (0.04 at factor 8) is not significant after trying three factors
-(Bonferroni 0.12), the gains come mostly from low-S/N spectra moving from
+p (0.02 at factor 8) is not significant after trying three factors
+(Bonferroni 0.07), the gains come mostly from low-S/N spectra moving from
 failure to success plus two Galaxy fits becoming II (smoothing of narrow
 host lines), so "more stable" is arguable, and redshift residuals do not
 improve. Catastrophic redshift errors are 7, 10 and 8 at factors 1, 4 and 8;
@@ -154,8 +162,8 @@ In all five runs (464 successful fits) `snid_consensus_age`,
 `snid_consensus_age_err` and `snid_r` are exactly 0.0. In SNID-SAGE 1.2.5,
 `result.r` comes from the vectorized peak finder, which hard-codes
 `r_value = 0.0`, and `consensus_age` reads a `getzt` key (`age_enhanced`)
-that only the no-match fallback dicts define. Recommendation: drop the three
-columns (or keep them only behind a check that they are non-zero).
+that only the no-match fallback dicts define. The three
+columns are no longer emitted.
 `result.template_age` (age of the best template) is populated and could
 replace them as `snid_template_age`; not done, needs sign-off.
 

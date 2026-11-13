@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import os
 from collections.abc import Callable
 
 import numpy as np
@@ -20,6 +21,8 @@ def _snid_api() -> tuple[Callable, Callable]:
     preprocess_spectrum : callable
     run_snid_analysis : callable
     """
+    # snid_sage imports pyplot at module load; avoid a GUI backend.
+    os.environ.setdefault("MPLBACKEND", "Agg")
     from snid_sage.snid.snid import preprocess_spectrum, run_snid_analysis
 
     return preprocess_spectrum, run_snid_analysis
@@ -44,7 +47,9 @@ def snid_result_to_fields(result) -> dict:
     -------
     dict
         ``snid_*`` columns, with plain Python scalars (None kept as None) and
-        one ``snid_frac_<type>`` per entry of ``type_fractions``.
+        one ``snid_frac_<type>`` per entry of ``type_fractions``. The
+        ``consensus_age``, ``consensus_age_error`` and ``r`` attributes are
+        deliberately not emitted: SNID-SAGE 1.2.5 returns constant 0.0.
     """
     mapping = {
         "snid_success": "success",
@@ -57,10 +62,7 @@ def snid_result_to_fields(result) -> dict:
         "snid_redshift_err": "redshift_error",
         "snid_consensus_redshift": "consensus_redshift",
         "snid_consensus_redshift_err": "consensus_redshift_error",
-        "snid_consensus_age": "consensus_age",
-        "snid_consensus_age_err": "consensus_age_error",
         "snid_lap": "lap",
-        "snid_r": "r",
         "snid_hsigma_lap_ccc": "hsigma_lap_ccc",
     }
     out = {col: _plain(getattr(result, attr)) for col, attr in mapping.items()}
