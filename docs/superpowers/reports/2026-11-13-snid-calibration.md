@@ -14,10 +14,12 @@ and TNS (`tns_type`, 19 spectra). Outputs in `runs/` (not committed).
 2. **`zmax` 0.7 vs 0.3: no new disagreements at rebin 1.** Every broad type is
    identical and no consensus redshift moves by more than 0.01. `zmax = 0.7`
    is kept (harmless, needed for future high-z data) but is unproven.
-3. **Rebinning dropped (`rebin_factor = 1`).** Factors 4 and 8 raise type
-   agreement, but not significantly once three factors are tried, and they do
-   not improve redshifts (more catastrophic outliers). Details below; this is
-   the closest call in the report.
+3. **Rebinning: the approved rule favours it; the default stays 1 pending a
+   user decision.** Agreement rises at factor 4 (NGSF 0.69 to 0.73, TNS
+   0.72 to 0.79; 6 gained, 1 lost) and factor 8 (NGSF 0.77, TNS 0.84;
+   10 gained, 2 lost, no TNS loss, 10 failures vs 13). `rebin_factor = 1` is
+   kept only as the conservative, no-behaviour-change default. That is a
+   judgment call beyond the approved rule (see Rebinning). Candidates: 4 or 8.
 4. **Flag thresholds kept at SNID-SAGE defaults**, which makes
    `snid_flag_low_quality` equivalent to `snid_success == False` (SNID-SAGE
    already discards matches below `lapmin = 0.3` and HσLAP-CCC 1.5).
@@ -43,6 +45,10 @@ Three runs in parallel on 12 cores; wall time per run 638 to 666 s
 (`bosscat.evaluate.broad_type`); non-SN SNID types count as disagreement.
 `snid_flag_low_quality` and `snid_flag_zedge` were 0 among successes in
 every run. Maximum consensus redshift in any rebin-1 run: 0.251.
+"No change" between zmax 0.3 and 0.7 means identical success flags and
+broad types: 24 of 92 consensus redshifts differ by up to 0.0075, and the
+81/92 vs 82/92 difference is one object (107806, AT2025hno) near the 0.02
+tolerance.
 
 ## Rebinning
 
@@ -62,17 +68,24 @@ counts as disagreement; two-sided sign test on gained vs lost):
 | 4 | 8/105 | 6/1 (0.13) | 2/0 (0.50) | 10 |
 | 8 | 15/105 | 10/2 (0.04) | 3/0 (0.25) | 8 |
 
-Decision: keep `rebin_factor = 1`. The rule was to ship a factor only if
-agreement is more stable than at factor 1. Type agreement rises at 4 and 8,
-but the best p (0.04 at factor 8) is not significant after trying three
-factors (Bonferroni 0.12), redshift residuals do not improve, catastrophic
-redshift errors rise (7 to 10 at factor 4), and results move for up to
-15 objects. Two of the new high-z redshifts are wrong: AT2026fxx (NGSF Ic,
-z 0.161) goes to Ic at z 0.36 (factor 4) and 0.34 (factor 8), which only
-`zmax > 0.3` allows. Gains come mostly from low-S/N spectra that fail at
-factor 1, plus two Galaxy fits that become II (smoothing of narrow host
-lines). **Factor 4 is a credible alternative for the user to weigh**: it
-loses no information on SNID's grid and recovers 3 more successful fits.
+Decision: **user's call; shipped default stays `rebin_factor = 1`.** The
+approved rule (ship a factor above 1 only if agreement with NGSF/TNS is more
+stable than at factor 1) taken literally favours rebinning: NGSF agreement
+goes 61/88 (0.69) to 66/90 (0.73) at factor 4 and 69/90 (0.77) at factor 8,
+TNS 13/18 (0.72) to 15/19 (0.79) and 16/19 (0.84), with no TNS regression
+and failures down from 13 to 10. I kept 1 as the no-behaviour-change,
+conservative default for reasons outside the approved rule: the best paired
+p (0.04 at factor 8) is not significant after trying three factors
+(Bonferroni 0.12), the gains come mostly from low-S/N spectra moving from
+failure to success plus two Galaxy fits becoming II (smoothing of narrow
+host lines), so "more stable" is arguable, and redshift residuals do not
+improve. Catastrophic redshift errors are 7, 10 and 8 at factors 1, 4 and 8;
+8 vs 7 is not a real difference. One new wrong redshift, AT2026fxx (NGSF Ic,
+z 0.161), goes to Ic at z 0.36 (factor 4) and 0.34 (factor 8), which only
+`zmax > 0.3` allows. Candidates: factor 4 loses no information on SNID's
+grid; factor 8 has the larger gain but is coarser than the SNID grid.
+Adopting either requires revisiting `min_snr` (S/N is measured after
+rebinning).
 
 ## Flag calibration (5 objects with NGSF `z_fit > 0.3`)
 
@@ -109,7 +122,10 @@ Separation on the full sample (rebin 1, 84 SN-type successes, "wrong" =
 | HσLAP-CCC < 1.5 (default) | 0/10 | 0/74 |
 | HσLAP-CCC < 2.0 | 8/10 | 45/74 |
 | HσLAP-CCC < 2.5 | 9/10 | 61/74 |
-| S/N < 3 | 5/10 | 29/74 |
+| S/N < 3 (default `min_snr`) | 5/10 | 29/74 |
+
+At `min_snr = 3.0`, `snid_flag_low_snr` flags 34 of 92 successful fits,
+including 29 of the 74 correct SN fits: a high false-positive rate.
 
 Type-agreement failures are no better separated: good and bad fits have
 indistinguishable lap and HσLAP-CCC distributions (bad fits include

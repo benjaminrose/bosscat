@@ -17,7 +17,7 @@ BOSS Classification Analysis Toolkit. Python package `bosscat` (src layout not u
 - Use each tool's native field names and report both of its values when it has two (e.g. SNID `redshift` and `consensus_redshift`), each with its own error.
 - Each classifier takes `(wave, flux, ivar, meta)` and returns a dict of already-prefixed fields; the pipeline merges dicts. Record each tool's configuration (version, templates, z range, rebin factor) in a sidecar JSON.
 - SNID redshift search `zmax` is 0.7 (covers the manifest max, 0.667); the 5 manifest objects with z > 0.3 were the calibration set. Spectra that may lie beyond `zmax` or fit poorly get `snid_flag_*` annotations. Flags only annotate: never suppress or alter `snid_consensus_type`.
-- Rebinning ships only if it improves stability against NGSF/TNS. Calibration (2026-11-13) dropped it: `rebin_factor = 1`. Factor 4 is the open alternative.
+- Rebinning ships only if it improves stability against NGSF/TNS. Default is `rebin_factor = 1`; factor 4/8 (higher NGSF/TNS agreement) is pending user decision, see the calibration report.
 - Air/vacuum conversion and Galactic dereddening are measured but not enabled; enabling either needs user sign-off.
 - Using the NGSF/BOSS redshift for calibration and evaluation is approved; using it as a classifier input is not.
 

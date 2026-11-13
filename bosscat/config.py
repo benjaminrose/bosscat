@@ -38,9 +38,10 @@ class SnidConfig:
     could not discriminate better values: ``min_lap`` and
     ``min_hsigma_lap_ccc`` stay at SNID-SAGE's own defaults (so the
     low-quality flag marks only failed fits); ``min_snr = 3`` brackets all 13
-    SNID failures (S/N < 2.9) at ``rebin_factor = 1``; ``zedge_margin`` is
-    untested (no fit came within 0.4 of ``zmax``). Rebinning was dropped
-    (factor 1).
+    SNID failures (S/N 0.96 to 2.82, measured after rebinning at factor 1);
+    ``zedge_margin`` is untested (no fit came within 0.4 of ``zmax``).
+    ``rebin_factor`` defaults to 1; factor 4 or 8 (which raised NGSF/TNS
+    agreement) is pending a user decision, see the report.
     """
 
     templates_dir: str | None = None
