@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bosscat"
+version = "0.1.0"
+description = "BOSS Classification Analysis Toolkit"
+authors = [
+    {name = "Benjamin Rose", email = "ben_rose@baylor.edu"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "astropy>=6.0",
+    "snid-sage>=1.0",
+]
+
+[project.scripts]
+bosscat = "bosscat.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["bosscat"]
+
+[tool.uv]
+package = true
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]

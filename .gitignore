@@ -1,0 +1,19 @@
+# uv / Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+
+# data (large, not version-controlled)
+data/
+
+# outputs
+results.csv
+*.output
+
+# macOS
+.DS_Store
+
+# local Claude Code settings
+.claude/settings.local.json
