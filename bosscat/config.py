@@ -23,13 +23,24 @@ class SnidConfig:
     rebin_factor : int, optional
         Rebinning factor applied to spectra before classification.
     min_lap : float, optional
-        Minimum template overlap fraction (SNID-SAGE default).
+        Minimum template overlap fraction (SNID-SAGE default ``lapmin``).
     min_hsigma_lap_ccc : float, optional
-        Minimum hsigma-lap-ccc quality metric (SNID-SAGE default).
+        Minimum hsigma-lap-ccc quality metric (SNID-SAGE default threshold).
     min_snr : float, optional
-        Minimum spectral S/N. Provisional.
+        Minimum median S/N per pixel, measured after rebinning.
     zedge_margin : float, optional
-        Margin from the redshift range edges used for flagging. Provisional.
+        Distance below ``zmax`` within which a consensus redshift is flagged.
+
+    Notes
+    -----
+    Defaults calibrated in
+    ``docs/superpowers/reports/2026-11-13-snid-calibration.md``. The data
+    could not discriminate better values: ``min_lap`` and
+    ``min_hsigma_lap_ccc`` stay at SNID-SAGE's own defaults (so the
+    low-quality flag marks only failed fits); ``min_snr = 3`` brackets all 13
+    SNID failures (S/N < 2.9) at ``rebin_factor = 1``; ``zedge_margin`` is
+    untested (no fit came within 0.4 of ``zmax``). Rebinning was dropped
+    (factor 1).
     """
 
     templates_dir: str | None = None

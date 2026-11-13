@@ -17,3 +17,6 @@ results.csv
 
 # local Claude Code settings
 .claude/settings.local.json
+
+# calibration runs (local experiments, not committed)
+runs/
