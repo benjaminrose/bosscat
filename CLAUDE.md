@@ -6,7 +6,7 @@ BOSS Classification Analysis Toolkit. Python package `bosscat` (src layout not u
 
 - Classify BOSS ToO (transient) coadd spectra (`ToO-specLite-FIELD-MJD-CATALOGID.fits`) with multiple tools. SNID-SAGE is first; NGSF and others are expected later.
 - `data/manifest.csv` (105 rows) is the existing **NGSF** output for the 105 spectra in `data/spectra/` (columns `name, file_name, snr_median, tns_type, sn_template, sn_family, z_fit, ...`). Use it as a comparison, not ground truth. Only ~19 rows have a TNS type. `file_name` omits `.fits`.
-- BOSS `Z`/`CLASS` in SPALL come from the NGSF run. They exist only for testing; production inputs will not have a redshift. Never pass a redshift into a classifier (`forced_redshift`).
+- BOSS `Z`/`CLASS` in SPALL are the BOSS pipeline's own values (QSO/GALAXY/STAR), NOT NGSF's: only 45 of 105 agree with the manifest `z_fit` within 0.01. The NGSF reference is the manifest `z_fit`/`sn_family`; `boss_*` columns are context only. Never pass any redshift into a classifier (`forced_redshift`); production inputs will not have one.
 - Typical data are low S/N (manifest `snr_median` median ~3.6, range 1-20). Redshifts: 5 of 105 have NGSF z > 0.3 (max 0.67).
 - Design doc: `docs/superpowers/specs/2026-11-13-snid-classification-design.md`.
 

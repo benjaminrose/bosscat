@@ -25,8 +25,11 @@ output traceable to its source.
 - Data: 105 spectra in `data/spectra/` (read-only; do not modify). `data/manifest.csv`
   holds the NGSF results for the same 105 objects (`file_name` has no `.fits`).
   Only ~19 have a TNS type. Median `snr_median` is ~3.6 (range 1 to 20). 5 of 105
-  have NGSF `z_fit` > 0.3 (max 0.67). BOSS `Z`/`CLASS` in the FITS files come
-  from that NGSF run.
+  have NGSF `z_fit` > 0.3 (max 0.67). CORRECTION (2026-11-13, found while
+  running real SNID-SAGE): BOSS `Z`/`CLASS` in the FITS files are the BOSS
+  pipeline's own values, NOT NGSF's. Only 45 of 105 agree with the manifest
+  `z_fit` to within 0.01 (median |dz| = 0.15; 48 QSO, 48 GALAXY, 9 STAR). The
+  NGSF reference redshift is the manifest `z_fit`, never `boss_z`.
 
 ## Goals
 
@@ -136,7 +139,9 @@ output traceable to its source.
 ### Quality flags (SNID-specific)
 
 Out-of-range is still a concern: a spectrum above `zmax` is forced into a wrong
-match (observed with `zmax=1.0`: a BOSS-QSO at z=0.76 returned Ia, z=0.08).
+match. (An earlier note here, "a BOSS-QSO at z=0.76 returned Ia, z=0.08", was
+a mischaracterization: for that object NGSF itself gives Ia-norm at z_fit 0.075,
+which agrees with SNID; it is the BOSS pipeline redshift that disagrees.)
 Flags only annotate; they never change `snid_consensus_type`.
 
 Success criterion for calibration (user-defined, with the 5 manifest objects
