@@ -79,6 +79,12 @@ def test_type_fraction_keys_sanitized():
     assert out["snid_frac_II_P"] == 0.4
 
 
+def test_type_fraction_collision_raises():
+    res = stub_result(type_fractions={"II P": 0.4, "II/P": 0.6})
+    with pytest.raises(ValueError, match="II P.*II/P|II/P.*II P"):
+        snid_result_to_fields(res)
+
+
 def test_numpy_scalars_become_python():
     res = stub_result(
         success=np.bool_(True), redshift=np.float64(0.1),
@@ -101,6 +107,7 @@ def test_calls_snid_blind_with_plots_off(monkeypatch, tmp_path):
     assert kwargs["zmax"] == 0.7
     assert kwargs["zmin"] == -0.01
     assert "forced_redshift" not in kwargs
+    assert set(kwargs) == {"zmin", "zmax", "show_plots"}
 
 
 def test_only_valid_pixels_reach_snid(monkeypatch, tmp_path):

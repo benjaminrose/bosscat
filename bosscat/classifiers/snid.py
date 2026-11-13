@@ -64,10 +64,57 @@ def snid_result_to_fields(result) -> dict:
         "snid_hsigma_lap_ccc": "hsigma_lap_ccc",
     }
     out = {col: _plain(getattr(result, attr)) for col, attr in mapping.items()}
+    seen: dict[str, object] = {}
     for key, frac in (result.type_fractions or {}).items():
         name = str(key).replace("/", "_").replace(" ", "_")
+        if name in seen:
+            raise ValueError(
+                f"type_fractions keys {seen[name]!r} and {key!r} both map to "
+                f"column 'snid_frac_{name}'"
+            )
+        seen[name] = key
         out[f"snid_frac_{name}"] = _plain(frac)
     return out
+
+
+NON_SN_TYPES = frozenset({"AGN", "Galaxy", "Star", "CV"})
+
+
+def snid_flags(result, snr_median: float, cfg: SnidConfig) -> dict[str, bool]:
+    """Compute quality flags for a SNID-SAGE result (annotation only).
+
+    Parameters
+    ----------
+    result : snid_sage.snid.snid.SNIDResult
+        SNID-SAGE result object.
+    snr_median : float
+        Median spectral S/N.
+    cfg : SnidConfig
+        Thresholds (``min_lap``, ``min_hsigma_lap_ccc``, ``min_snr``,
+        ``zmax``, ``zedge_margin``).
+
+    Returns
+    -------
+    dict
+        Boolean flags ``snid_flag_low_quality``, ``snid_flag_low_snr``,
+        ``snid_flag_nonsn_template`` and ``snid_flag_zedge``. Missing (None)
+        lap, hsigma_lap_ccc or consensus_redshift count as flagged.
+    """
+    lap, hs, z = result.lap, result.hsigma_lap_ccc, result.consensus_redshift
+    return {
+        "snid_flag_low_quality": bool(
+            lap is None
+            or hs is None
+            or lap < cfg.min_lap
+            or hs < cfg.min_hsigma_lap_ccc
+        ),
+        "snid_flag_low_snr": bool(snr_median < cfg.min_snr),
+        "snid_flag_nonsn_template": bool(
+            result.consensus_type in NON_SN_TYPES
+            or result.template_type in NON_SN_TYPES
+        ),
+        "snid_flag_zedge": bool(z is None or z >= cfg.zmax - cfg.zedge_margin),
+    }
 
 
 def make_snid(cfg: SnidConfig) -> Classifier:
@@ -101,7 +148,9 @@ def make_snid(cfg: SnidConfig) -> Classifier:
             show_plots=False,
         )
         fields = snid_result_to_fields(result)
-        fields["snid_snr_median"] = float(np.median(f * np.sqrt(iv)))
+        snr_median = float(np.median(f * np.sqrt(iv)))
+        fields["snid_snr_median"] = snr_median
+        fields.update(snid_flags(result, snr_median, cfg))
         return fields
 
     def provenance():
