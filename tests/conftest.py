@@ -1,5 +1,8 @@
 """Shared fixtures: build small synthetic BOSS-style coadd FITS files."""
 
+import os
+from pathlib import Path
+
 import numpy as np
 import pytest
 from astropy.io import fits
@@ -86,3 +89,23 @@ def make_fits(tmp_path):
         return write_boss_fits(tmp_path / name, **kwargs)
 
     return _make
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip ``snid_real`` tests in CI or when no SNID templates are available."""
+    templates = os.environ.get("BOSSCAT_SNID_TEMPLATES")
+    if os.environ.get("CI"):
+        reason = "snid_real: skipped because the CI environment variable is set"
+    elif not templates:
+        reason = "snid_real: skipped because BOSSCAT_SNID_TEMPLATES is not set"
+    elif not Path(templates).is_dir():
+        reason = (
+            "snid_real: skipped because BOSSCAT_SNID_TEMPLATES is not a "
+            f"directory: {templates}"
+        )
+    else:
+        return
+    skip = pytest.mark.skip(reason=reason)
+    for item in items:
+        if "snid_real" in item.keywords:
+            item.add_marker(skip)

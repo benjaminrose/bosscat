@@ -29,3 +29,8 @@ package = true
 dev = [
     "pytest>=9.2.0",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "snid_real: runs real SNID-SAGE; needs templates; skipped in CI",
+]
