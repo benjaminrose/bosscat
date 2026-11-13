@@ -77,6 +77,11 @@ def snid_result_to_fields(result) -> dict:
     return out
 
 
+def _missing(value) -> bool:
+    """Return True if ``value`` is None or not a finite number."""
+    return value is None or not np.isfinite(value)
+
+
 NON_SN_TYPES = frozenset({"AGN", "Galaxy", "Star", "CV"})
 
 
@@ -98,22 +103,23 @@ def snid_flags(result, snr_median: float, cfg: SnidConfig) -> dict[str, bool]:
     dict
         Boolean flags ``snid_flag_low_quality``, ``snid_flag_low_snr``,
         ``snid_flag_nonsn_template`` and ``snid_flag_zedge``. Missing (None)
-        lap, hsigma_lap_ccc or consensus_redshift count as flagged.
+        lap, hsigma_lap_ccc, consensus_redshift or snr_median (or non-finite
+        values) count as flagged.
     """
     lap, hs, z = result.lap, result.hsigma_lap_ccc, result.consensus_redshift
     return {
         "snid_flag_low_quality": bool(
-            lap is None
-            or hs is None
+            _missing(lap)
+            or _missing(hs)
             or lap < cfg.min_lap
             or hs < cfg.min_hsigma_lap_ccc
         ),
-        "snid_flag_low_snr": bool(snr_median < cfg.min_snr),
+        "snid_flag_low_snr": bool(_missing(snr_median) or snr_median < cfg.min_snr),
         "snid_flag_nonsn_template": bool(
             result.consensus_type in NON_SN_TYPES
             or result.template_type in NON_SN_TYPES
         ),
-        "snid_flag_zedge": bool(z is None or z >= cfg.zmax - cfg.zedge_margin),
+        "snid_flag_zedge": bool(_missing(z) or z >= cfg.zmax - cfg.zedge_margin),
     }
 
 

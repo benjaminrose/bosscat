@@ -68,7 +68,12 @@ def test_nonsn_template(overrides, expected):
 
 @pytest.mark.parametrize(
     "z, expected",
-    [(0.69, True), (0.68, True), (0.6799, False), (0.3, False)],
+    [
+        (0.69, True),
+        (CFG.zmax - CFG.zedge_margin, True),
+        (CFG.zmax - CFG.zedge_margin - 1e-4, False),
+        (0.3, False),
+    ],
 )
 def test_zedge(z, expected):
     flags = snid_flags(good(consensus_redshift=z), 10.0, CFG)
@@ -82,6 +87,33 @@ def test_none_fields_flag_true():
     assert flags["snid_flag_zedge"] is True
     res = good(hsigma_lap_ccc=None)
     assert snid_flags(res, 10.0, CFG)["snid_flag_low_quality"] is True
+
+
+def test_none_lap_alone_flags_low_quality():
+    flags = snid_flags(good(lap=None), 10.0, CFG)
+    assert flags["snid_flag_low_quality"] is True
+    assert flags["snid_flag_zedge"] is False
+
+
+BAD = [float("nan"), float("inf"), float("-inf")]
+
+
+@pytest.mark.parametrize("bad", BAD)
+@pytest.mark.parametrize("field", ["lap", "hsigma_lap_ccc"])
+def test_nonfinite_quality_fields_flag(field, bad):
+    flags = snid_flags(good(**{field: bad}), 10.0, CFG)
+    assert flags["snid_flag_low_quality"] is True
+
+
+@pytest.mark.parametrize("bad", BAD)
+def test_nonfinite_snr_flags(bad):
+    assert snid_flags(good(), bad, CFG)["snid_flag_low_snr"] is True
+
+
+@pytest.mark.parametrize("bad", BAD)
+def test_nonfinite_redshift_flags_zedge(bad):
+    flags = snid_flags(good(consensus_redshift=bad), 10.0, CFG)
+    assert flags["snid_flag_zedge"] is True
 
 
 def run_clf(monkeypatch, tmp_path, result):
