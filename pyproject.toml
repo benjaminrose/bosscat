@@ -28,9 +28,17 @@ package = true
 [dependency-groups]
 dev = [
     "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.pytest.ini_options]
 markers = [
     "snid_real: runs real SNID-SAGE; needs templates; skipped in CI",
 ]
+
+[tool.coverage.run]
+source = ["bosscat"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true

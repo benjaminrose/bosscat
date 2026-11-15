@@ -59,7 +59,7 @@ BOSS Classification Analysis Toolkit. Python package `bosscat` (src layout not u
 
 ## Testing
 
-- pytest (dev dependency group); run with `uv run pytest`. CI: `.github/workflows/tests.yml`.
+- pytest + pytest-cov (dev dependency group); run with `uv run pytest`, add `--cov` for coverage (branch coverage, config in `pyproject.toml`). CI (`.github/workflows/tests.yml`) runs `uv run pytest --cov --cov-fail-under=95`; the threshold lives in the workflow, not `pyproject.toml`. Coverage was 96.4% (CI-like and with real SNID alike) when set; raise the threshold when coverage rises, never lower it to make CI pass.
 - `tests/conftest.py` builds synthetic BOSS-style FITS files. SNID-SAGE is stubbed in most tests; `tests/test_snid_real.py` runs real SNID-SAGE (marker `snid_real`, skipped without templates and in CI).
 - Ask before adding further test dependencies.
 

@@ -21,3 +21,9 @@ results.csv
 
 # calibration runs (local experiments, not committed)
 runs/
+
+# coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/

@@ -57,3 +57,25 @@ Compares SNID results with the NGSF manifest (`z_fit`, `sn_family`) and TNS
 types: redshift residuals, broad-type agreement, failure and flag counts, and
 `unmapped_reference_labels` (reference labels that map to no broad type and are
 therefore excluded from agreement).
+
+## Testing and coverage
+
+```
+uv run pytest                 # tests only
+uv run pytest --cov           # tests plus per-module coverage (branch coverage, missing lines)
+```
+
+Real SNID-SAGE tests (marker `snid_real`) run only when `BOSSCAT_SNID_TEMPLATES`
+points at the templates and `CI` is unset; to include them locally:
+
+```
+MPLBACKEND=Agg BOSSCAT_SNID_TEMPLATES=/path/to/templates uv run pytest --cov
+```
+
+CI runs `uv run pytest --cov --cov-fail-under=95`. CI has no templates, so the
+real-SNID tests are skipped there and the CI number is the one that gates (96.4%
+when the threshold was set; the local run with real SNID gave the same figure).
+Coverage settings live in `pyproject.toml` under `[tool.coverage.*]`. The
+`.coverage` data file is gitignored. The threshold is deliberately a CI flag, not
+a `pyproject.toml` setting, so running `pytest --cov` on a single test file does
+not fail locally.
