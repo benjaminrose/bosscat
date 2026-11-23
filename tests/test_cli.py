@@ -2,13 +2,11 @@
 
 import csv
 import sys
-from types import SimpleNamespace
-
-import numpy as np
 import pytest
 
 from bosscat import __main__ as cli
-from bosscat import pipeline
+from bosscat.classifiers import Classifier
+from bosscat.config import SnidConfig
 
 
 def run_cli(monkeypatch, *argv):
@@ -27,7 +25,11 @@ def test_defaults(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["bosscat", "a.fits"])
     args = cli.parse_args()
     assert args.input_files == ["a.fits"]
-    assert args.snid is True
+    assert args.classifier == ["snid"]
+    assert args.no_classifier is False
+    assert args.zmax is None
+    assert args.rebin_factor is None
+    assert args.templates_dir is None
     assert args.output == "results.csv"
 
 
@@ -43,10 +45,36 @@ def test_long_output_flag(monkeypatch):
     assert cli.parse_args().output == "y.csv"
 
 
-@pytest.mark.parametrize("flag, expected", [("--snid", True), ("--no-snid", False)])
-def test_snid_flag(monkeypatch, flag, expected):
-    monkeypatch.setattr(sys, "argv", ["bosscat", "a.fits", flag])
-    assert cli.parse_args().snid is expected
+def test_classifier_flag_does_not_swallow_positionals(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["bosscat", "--classifier", "snid", "a.fits", "b.fits"])
+    args = cli.parse_args()
+    assert args.classifier == ["snid"]
+    assert args.input_files == ["a.fits", "b.fits"]
+
+
+def test_unknown_classifier_is_an_error(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["bosscat", "a.fits", "--classifier", "nope"])
+    with pytest.raises(SystemExit) as exc:
+        cli.parse_args()
+    assert exc.value.code == 2
+
+
+def test_numeric_options_parsed(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["bosscat", "a.fits", "--zmax", "0.5",
+                                      "--rebin-factor", "2", "--templates-dir", "/t"])
+    args = cli.parse_args()
+    assert args.zmax == 0.5
+    assert args.rebin_factor == 2
+    assert args.templates_dir == "/t"
+
+
+@pytest.mark.parametrize("value", ["0", "-2"])
+def test_rebin_factor_below_one_is_an_error(monkeypatch, capsys, value):
+    monkeypatch.setattr(sys, "argv", ["bosscat", "a.fits", "--rebin-factor", value])
+    with pytest.raises(SystemExit) as exc:
+        cli.parse_args()
+    assert exc.value.code == 2
+    assert "rebin-factor" in capsys.readouterr().err
 
 
 def test_no_input_files_is_an_error(monkeypatch, capsys):
@@ -66,22 +94,63 @@ def test_unknown_option_is_an_error(monkeypatch):
 
 # --- main() wiring ---------------------------------------------------------
 
-def test_main_passes_arguments_to_run_pipeline(monkeypatch):
+def _capture_pipeline(monkeypatch):
     calls = []
-    monkeypatch.setattr(cli, "run_pipeline",
-                        lambda files, out, run_snid: calls.append((files, out, run_snid)))
-    run_cli(monkeypatch, "a.fits", "b.fits", "-o", "o.csv", "--no-snid")
-    assert calls == [(["a.fits", "b.fits"], "o.csv", False)]
+    monkeypatch.setattr(
+        cli, "run_pipeline",
+        lambda files, out, classifiers=(): calls.append((files, out, list(classifiers))))
+    return calls
 
 
-# --- end to end (SNID disabled or stubbed) ---------------------------------
+def test_main_no_classifier_runs_none(monkeypatch):
+    calls = _capture_pipeline(monkeypatch)
+    run_cli(monkeypatch, "a.fits", "b.fits", "-o", "o.csv", "--no-classifier")
+    assert calls == [(["a.fits", "b.fits"], "o.csv", [])]
 
-def test_end_to_end_no_snid_writes_expected_csv(monkeypatch, make_fits, tmp_path):
+
+def test_main_builds_snid_from_options(monkeypatch):
+    calls = _capture_pipeline(monkeypatch)
+    seen = []
+
+    def fake_make(cfg):
+        seen.append(cfg)
+        return Classifier("snid", lambda *a: {}, lambda: {})
+
+    monkeypatch.setitem(cli.CLASSIFIER_FACTORIES, "snid", fake_make)
+    run_cli(monkeypatch, "a.fits", "--zmax", "0.3", "--rebin-factor", "2",
+            "--templates-dir", "/t")
+    assert seen == [SnidConfig(templates_dir="/t", zmax=0.3, rebin_factor=2)]
+    assert [c.name for c in calls[0][2]] == ["snid"]
+
+
+def test_main_unspecified_options_keep_config_defaults(monkeypatch):
+    _capture_pipeline(monkeypatch)
+    seen = []
+    monkeypatch.setitem(
+        cli.CLASSIFIER_FACTORIES, "snid",
+        lambda cfg: seen.append(cfg) or Classifier("snid", lambda *a: {}, lambda: {}))
+    run_cli(monkeypatch, "a.fits")
+    assert seen == [SnidConfig()]
+
+
+def test_main_setup_error_exits_2(monkeypatch, make_fits, tmp_path, capsys):
+    monkeypatch.delenv("BOSSCAT_SNID_TEMPLATES", raising=False)
+    out = tmp_path / "r.csv"
+    with pytest.raises(SystemExit) as exc:
+        run_cli(monkeypatch, str(make_fits()), "-o", str(out))
+    assert exc.value.code == 2
+    assert "templates directory" in capsys.readouterr().err
+    assert not out.exists()
+
+
+# --- end to end (no classifier) --------------------------------------------
+
+def test_end_to_end_no_classifier_writes_expected_csv(monkeypatch, make_fits, tmp_path):
     f1 = make_fits("one.fits", spall={"Z_ERR": -1.0, "CLASS": "STAR"})
     f2 = make_fits("two.fits", drop=["Z", "CLASS"])
     out = tmp_path / "sub" / "results.csv"  # parent dir does not exist yet
 
-    run_cli(monkeypatch, str(f1), str(f2), "-o", str(out), "--no-snid")
+    run_cli(monkeypatch, str(f1), str(f2), "-o", str(out), "--no-classifier")
 
     rows = read_csv(out)
     assert [r["filename"] for r in rows] == ["one.fits", "two.fits"]
@@ -92,7 +161,7 @@ def test_end_to_end_no_snid_writes_expected_csv(monkeypatch, make_fits, tmp_path
     assert rows[0]["programname"] == "TOO_TNS"
     assert rows[1]["boss_z"] == ""           # missing column -> empty cell
     assert rows[1]["boss_class"] == ""
-    assert rows[0]["snid_success"] == "False"  # classifier did not run
+    assert not any(k.startswith("snid_") for k in rows[0])
     assert "plate" not in rows[0]
 
 
@@ -103,7 +172,8 @@ def test_unreadable_file_is_recorded_and_batch_continues(monkeypatch, make_fits,
     missing = tmp_path / "missing.fits"
     out = tmp_path / "r.csv"
 
-    run_cli(monkeypatch, str(bad), str(missing), str(good), "-o", str(out), "--no-snid")
+    run_cli(monkeypatch, str(bad), str(missing), str(good), "-o", str(out),
+            "--no-classifier")
 
     rows = {r["filepath"]: r for r in read_csv(out)}
     assert len(rows) == 3
@@ -112,41 +182,3 @@ def test_unreadable_file_is_recorded_and_batch_continues(monkeypatch, make_fits,
     assert rows[str(good)]["filename"] == "good.fits"
     assert rows[str(good)]["error"] == ""
     assert "[ERROR]" in capsys.readouterr().out
-
-
-def test_masked_pixels_are_dropped_before_classification(monkeypatch, make_fits, tmp_path):
-    seen = {}
-
-    def fake_classify(wave, flux):
-        seen["wave"], seen["flux"] = wave, flux
-        result = SimpleNamespace(
-            success=True, consensus_type="Ia", redshift=0.1, redshift_error=0.01,
-            age=3.0, age_error=1.0, lap=5.0, type_fractions={"Ia/norm": 0.9},
-        )
-        return result, {}
-
-    monkeypatch.setattr(pipeline, "classify_spectrum", fake_classify)
-    out = tmp_path / "r.csv"
-    run_cli(monkeypatch, str(make_fits()), "-o", str(out))
-
-    # default fixture has ivar == [1, 2, 0, 4, 5]: pixel 2 must be removed
-    np.testing.assert_allclose(seen["flux"], [1, 2, 4, 5])
-    assert len(seen["wave"]) == 4
-    row = read_csv(out)[0]
-    assert row["snid_success"] == "True"
-    assert row["snid_consensus_type"] == "Ia"
-    assert row["snid_frac_Ia_norm"] == "0.9"
-
-
-def test_classifier_failure_is_recorded_not_raised(monkeypatch, make_fits, tmp_path):
-    def boom(wave, flux):
-        raise RuntimeError("snid exploded")
-
-    monkeypatch.setattr(pipeline, "classify_spectrum", boom)
-    out = tmp_path / "r.csv"
-    run_cli(monkeypatch, str(make_fits()), "-o", str(out))
-
-    row = read_csv(out)[0]
-    assert row["snid_error"] == "snid exploded"
-    assert row["snid_success"] == "False"
-    assert row["boss_class"] == "GALAXY"  # metadata still written

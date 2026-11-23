@@ -1,34 +1,32 @@
 """Write classification results to CSV."""
 
 import csv
+import datetime
+import importlib.metadata
+import json
+import platform
 from pathlib import Path
 
 
-def snid_result_to_row(meta, result):
-    """Flatten a ``SNIDResult`` and metadata dict into a single CSV row.
+PROVENANCE_SUFFIX = ".provenance.json"
 
-    All SNID-SAGE columns are prefixed with ``snid_`` so that future
-    classifiers can add their own columns without name collisions.  Type
-    fraction columns are named ``snid_frac_<type>`` where ``<type>`` is
-    taken directly from ``SNIDResult.type_fractions`` (forward-slashes and
-    spaces replaced with underscores).
+
+def base_row(meta):
+    """Build the shared and ``boss_*`` columns of a result row.
 
     Parameters
     ----------
     meta : dict
         Metadata dict returned by
         :func:`~bosscat.io.boss.read_boss_spectrum`.
-    result : SNIDResult or None
-        Classification result from SNID-SAGE.  Pass ``None`` when the
-        classifier did not run or raised an exception; all SNID columns
-        will be omitted from the row.
 
     Returns
     -------
     row : dict
-        Flat dict suitable for writing with :class:`csv.DictWriter`.
+        Flat dict of metadata columns; classifier columns are added by the
+        caller.
     """
-    row = {
+    return {
         "filename": meta.get("filename", ""),
         "filepath": meta.get("filepath", ""),
         "field": meta.get("field", ""),
@@ -47,25 +45,65 @@ def snid_result_to_row(meta, result):
         "sn_median": meta.get("sn_median", ""),
     }
 
-    if result is None:
-        row["snid_success"] = False
-        return row
 
-    row["snid_success"] = result.success
-    row["snid_consensus_type"] = result.consensus_type
-    row["snid_redshift"] = result.redshift
-    row["snid_redshift_err"] = result.redshift_error
-    row["snid_age"] = result.age
-    row["snid_age_err"] = result.age_error
-    row["snid_lap"] = result.lap
+def sidecar_path(output_path):
+    """Return the provenance sidecar path for a results file.
 
-    # Type fractions — keyed by whatever types SNID found in this run
-    fractions = result.type_fractions or {}
-    for t, frac in fractions.items():
-        safe_key = t.replace("/", "_").replace(" ", "_")
-        row[f"snid_frac_{safe_key}"] = frac
+    Parameters
+    ----------
+    output_path : str or Path
+        Results CSV path.
 
-    return row
+    Returns
+    -------
+    Path
+        ``<output file name>.provenance.json`` in the same directory, so it
+        can never coincide with the results file (``results.csv`` gives
+        ``results.csv.provenance.json``).
+    """
+    output_path = Path(output_path)
+    return output_path.with_name(output_path.name + PROVENANCE_SUFFIX)
+
+
+def write_provenance(output_path, classifiers, input_files, complete=True,
+                     n_rows=0):
+    """Write a JSON sidecar describing a run, next to the results CSV.
+
+    Parameters
+    ----------
+    output_path : str or Path
+        Results CSV path; see :func:`sidecar_path` for the sidecar name.
+    classifiers : sequence of Classifier
+        Classifiers used; each ``provenance()`` is recorded under its name.
+    input_files : sequence of str
+        Input file paths.
+    complete : bool, optional
+        False when the run stopped early (interrupt or crash).
+    n_rows : int, optional
+        Number of result rows written.
+
+    Returns
+    -------
+    Path
+        Path of the JSON file written.
+    """
+    path = sidecar_path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        version = importlib.metadata.version("bosscat")
+    except importlib.metadata.PackageNotFoundError:
+        version = "unknown"
+    record = {
+        "bosscat_version": version,
+        "python_version": platform.python_version(),
+        "created": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "input_files": [str(f) for f in input_files],
+        "classifiers": {c.name: c.provenance() for c in classifiers},
+        "complete": bool(complete),
+        "n_rows": int(n_rows),
+    }
+    path.write_text(json.dumps(record, indent=2) + "\n")
+    return path
 
 
 def write_results(rows, output_path):
@@ -79,7 +117,7 @@ def write_results(rows, output_path):
     Parameters
     ----------
     rows : list of dict
-        Row dicts, typically produced by :func:`snid_result_to_row`.
+        Row dicts, typically produced by :func:`base_row` plus classifier fields.
     output_path : str or Path
         Destination CSV path.  Parent directories are created if they do
         not exist.

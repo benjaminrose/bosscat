@@ -10,6 +10,7 @@ data/
 
 # outputs
 results.csv
+*.provenance.json
 *.output
 
 # macOS
@@ -17,3 +18,12 @@ results.csv
 
 # local Claude Code settings
 .claude/settings.local.json
+
+# calibration runs (local experiments, not committed)
+runs/
+
+# coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
