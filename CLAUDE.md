@@ -8,8 +8,8 @@ BOSS Classification Analysis Toolkit. Python package `bosscat` (src layout not u
 - `data/manifest.csv` (105 rows) is the existing **NGSF** output for the 105 spectra in `data/spectra/` (columns `name, file_name, snr_median, tns_type, sn_template, sn_family, z_fit, ...`). Use it as a comparison, not ground truth. Only ~19 rows have a TNS type. `file_name` omits `.fits`.
 - BOSS `Z`/`CLASS` in SPALL are the BOSS pipeline's own values (QSO/GALAXY/STAR), NOT NGSF's: only 45 of 105 agree with the manifest `z_fit` within 0.01. The NGSF reference is the manifest `z_fit`/`sn_family`; `boss_*` columns are context only. Never pass any redshift into a classifier (`forced_redshift`); production inputs will not have one.
 - Typical data are low S/N (manifest `snr_median` median ~3.6, range 1-20). Redshifts: 5 of 105 have NGSF z > 0.3 (max 0.67).
-- Calibration results: `docs/superpowers/reports/2026-11-13-snid-calibration.md`. Run outputs go in `runs/` (gitignored, never committed).
-- Design doc: `docs/superpowers/specs/2026-11-13-snid-classification-design.md`.
+- Calibration results: `.claude/design/reports/2026-11-13-snid-calibration.md`. Run outputs go in `runs/` (gitignored, never committed).
+- Design doc: `.claude/design/specs/2026-11-13-snid-classification-design.md`.
 
 ## Design rules (decided with the user)
 
@@ -26,6 +26,7 @@ BOSS Classification Analysis Toolkit. Python package `bosscat` (src layout not u
 
 - `run_snid_analysis` defaults to `show_plots=True`, and its plotting step raises `ImportError` in this install. Always pass `show_plots=False`; `_snid_api` defaults `MPLBACKEND=Agg`. ~11 s per spectrum serial; a full 105-spectrum run is ~11 min with 3 runs in parallel.
 - `redshift` (best template) differs from `consensus_redshift`. `consensus_age`, `consensus_age_error` and `r` are always 0.0 in v1.2.5 (placeholders), so `snid_consensus_age`, `snid_consensus_age_err` and `snid_r` are NOT emitted. `template_age` is populated; emitting it as `snid_template_age` is a candidate that needs the user's sign-off.
+- `consensus_type` and `best_subtype` come from the winning GMM cluster (best top-5-mean HσLAP-CCC). `best_subtype` is a vote over all cluster members (per-subtype mean of top-5 HσLAP-CCC, scaled by n/5 if fewer than 5). `template_type`, `template_subtype`, `template_name` and `redshift` come from `filtered_matches[0]`, which is the **lowest-redshift cluster member**, NOT the best-correlating match (the cluster match list is re-sorted by redshift, `cosmological_clustering.py:783`). Verified on 3 spectra (2026-11-24). So `snid_template_*` and `snid_redshift` can disagree with `snid_best_subtype` without any real ambiguity. `second_best_subtype` and its margin exist in SNID-SAGE but are not emitted. Whether to add best-metric columns is pending user decision. User-facing write-up: `docs/snid-output-columns.md`.
 - SNID-SAGE already discards matches with lap < 0.3 or HσLAP-CCC < 1.5 (its defaults) and then returns `success=False`, so `snid_flag_low_quality` at those thresholds marks only failed fits. All SNID failures here have S/N < 3.
 - SNID resamples to 1024 log bins over 2500-10000 Å (406 km/s per bin, ~6 BOSS pixels) and takes flux only, no ivar. Template air/vacuum convention is undocumented.
 - Templates: `/Users/ben_rose/Documents/1 Projects/as5-classifier/SNID-SAGE/templates` (read-only), passed via `--templates-dir` or `BOSSCAT_SNID_TEMPLATES`.
