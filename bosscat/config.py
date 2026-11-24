@@ -34,7 +34,7 @@ class SnidConfig:
     Notes
     -----
     Defaults calibrated in
-    ``docs/superpowers/reports/2026-11-13-snid-calibration.md``. The data
+    ``.claude/design/reports/2026-11-13-snid-calibration.md``. The data
     could not discriminate better values: ``min_lap`` and
     ``min_hsigma_lap_ccc`` stay at SNID-SAGE's own defaults (so the
     low-quality flag marks only failed fits); ``min_snr = 3`` brackets all 13

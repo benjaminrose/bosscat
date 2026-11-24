@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python >= 3.10 (CI 3.14), `uv`, numpy, astropy, snid-sage 1.2.5, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-11-13-snid-classification-design.md` (read it first; also read `CLAUDE.md`).
+**Spec:** `.claude/design/specs/2026-11-13-snid-classification-design.md` (read it first; also read `CLAUDE.md`).
 
 ## Global Constraints
 
@@ -153,7 +153,7 @@ Rules: `low_quality` if `lap < min_lap` or `hsigma_lap_ccc < min_hsigma_lap_ccc`
 
 ### Task 8: Calibration experiments and defaults
 
-**Files:** Modify `.gitignore` (`runs/`), `bosscat/config.py` (defaults), `CLAUDE.md`; Create `docs/superpowers/reports/2026-11-13-snid-calibration.md`
+**Files:** Modify `.gitignore` (`runs/`), `bosscat/config.py` (defaults), `CLAUDE.md`; Create `.claude/design/reports/2026-11-13-snid-calibration.md`
 
 Runs use the user's machine and templates (about 11 s per spectrum, ~20 min per full run; do the runs in the background and record the time). Outputs go to `runs/` and are not committed.
 
@@ -161,7 +161,7 @@ Runs use the user's machine and templates (about 11 s per spectrum, ~20 min per 
 - [ ] **Step 2:** Decide, from the evaluations: (a) whether `zmax=0.7` introduces new false matches among the ~100 low-z objects (compare against `zmax=0.3`); (b) the rebin default. Rule: ship a factor above 1 only if agreement with NGSF/TNS is more stable than at factor 1 (state the numbers); otherwise keep `rebin_factor=1` and record that rebinning was dropped. Also compare SNID's log-grid spacing with BOSS's ~69 km/s pixels and note it.
 - [ ] **Step 3:** Calibrate flags on the 5 objects with NGSF `z_fit > 0.3`: success means `snid_consensus_redshift` recovers `z_fit` (state the tolerance used and why) and the flags separate these from wrong or low-quality fits. Set `min_snr`, `zedge_margin`, `min_lap`, `min_hsigma_lap_ccc` defaults accordingly; state the uncertainty from n=5 and do not over-tune.
 - [ ] **Step 4 (measure only, do not enable):** For air/vacuum and for dereddening with `boss_ebv`, report the size of the effect on one or two spectra. Enabling either needs user sign-off.
-- [ ] **Step 5:** Write the report in `docs/superpowers/reports/` (results tables, decisions, caveats: NGSF is not truth, only ~19 TNS types). Update `CLAUDE.md` layout/rules to match the final code. Re-run `uv run pytest -v`; expect PASS.
+- [ ] **Step 5:** Write the report in `.claude/design/reports/` (results tables, decisions, caveats: NGSF is not truth, only ~19 TNS types). Update `CLAUDE.md` layout/rules to match the final code. Re-run `uv run pytest -v`; expect PASS.
 - [ ] **Step 6:** Commit config, report, `.gitignore`, `CLAUDE.md` (if asked).
 
 ---
